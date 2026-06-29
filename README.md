@@ -1,4 +1,4 @@
-# os_seg — Cross-Domain Semantic Segmentation of RGB-less MLS Point Clouds
+# Cross-Domain Semantic Segmentation of RGB-less MLS Point Clouds
 
 Semantic segmentation of **Ordnance Survey (OS) mobile-laser-scanning (MLS) point clouds** that have **no RGB and no labels**, by transferring models trained on public labeled MLS datasets (**Toronto3D**, **Paris-Lille-3D / NPM3D**) — with a focus on **cross-sensor domain adaptation**.
 
