@@ -110,7 +110,7 @@ After voxelization: train chunk sizes min 10.6k / median 156k / **max 1.57 M** (
 | Optimizer / sched | AdamW, OneCycleLR, 100 epochs |
 | Batch / aug | bs 8 (2 GPU), GridSample 0.05 m, SphereCrop 102,400, rotate/scale/flip/jitter |
 | Acceleration | flash-attention, AMP (fp16) |
-| Train time | ~20 min / model (2 × RTX 3090) |
+| Train time | ~65 min / single-source model (2 × RTX 3090); joint ~98 min |
 
 **Two variants:** coord-only — input = XYZ (in_channels = 3); coord + intensity — input = XYZ + z-scored intensity (in_channels = 4).
 
