@@ -30,3 +30,9 @@ __pycache__/
 # generated report artifacts (broken refs on GitHub)
 *.html
 notes/report_en2.md
+
+# ---- drafts / internal (not for the public repo) ----
+notes/
+paper/
+scripts/*.png
+scripts/_*.sh

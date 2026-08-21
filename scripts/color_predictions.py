@@ -9,16 +9,16 @@
   exp/osdata_infer/*_pred_*.laz        (Toronto, 8 classes)
   exp/osdata_infer_npm3d/*_pred_*.laz  (NPM3D,  9 classes)
 출력:
-  exp/osdata_infer_colored/toronto/<name>_rgb.laz
-  exp/osdata_infer_colored/npm3d/<name>_rgb.laz
-  exp/osdata_infer_colored/color_legend.txt
+  exp/final_results/osdata_infer_colored/toronto/<name>_rgb.laz
+  exp/final_results/osdata_infer_colored/npm3d/<name>_rgb.laz
+  exp/final_results/osdata_infer_colored/color_legend.txt
 """
 import os
 import glob
 import numpy as np
 import laspy
 
-OUT_ROOT = "/home/jmgoo/projects/os_seg/exp/osdata_infer_colored"
+OUT_ROOT = "/home/jmgoo/projects/os_seg/exp/final_results/osdata_infer_colored"
 
 # ---- 공통 의미→색 (0-255). 같은 의미 = 같은 색, 전부 서로 구별되는 색 ----
 SEMANTIC_COLOR = {
@@ -49,6 +49,7 @@ SOURCES = {
     "toronto": ("/home/jmgoo/projects/os_seg/exp/osdata_infer", TORONTO_NAMES),
     "npm3d":   ("/home/jmgoo/projects/os_seg/exp/osdata_infer_npm3d", NPM3D_NAMES),
     "joint":   ("/home/jmgoo/projects/os_seg/exp/osdata_infer_joint", JOINT_NAMES),
+    "all3":    ("/home/jmgoo/projects/os_seg/exp/osdata_infer_all3", JOINT_NAMES),
 }
 
 

@@ -1,42 +1,61 @@
-# Cross-Domain Semantic Segmentation of RGB-less MLS Point Clouds
+# Cross-Sensor Generalization of MLS Point-Cloud Semantic Segmentation
 
-Semantic segmentation of **Ordnance Survey (OS) mobile-laser-scanning (MLS) point clouds** that have **no RGB and no labels**, by transferring models trained on public labeled MLS datasets (**Toronto3D**, **Paris-Lille-3D / NPM3D**) — with a focus on **cross-sensor domain adaptation**.
+Semantic segmentation of **mobile laser scanning (MLS)** point clouds that must transfer **between LiDAR sensors**. We train on public labelled MLS datasets and apply the model to an **unlabelled Ordnance Survey (OS) cloud of Southampton**, captured with a sensor absent from every public dataset. The study is a controlled **four-sensor** benchmark with a simple, target-free multi-sensor baseline.
 
-Built on [Pointcept](https://github.com/Pointcept/Pointcept) with the **Point Transformer V3 (PTv3)** backbone.
-
----
-
-## Why this project
-
-OS surveys cities with a **Hesai PandarXT-32** LiDAR and provide only geometry + intensity (no colour, no labels). We want per-point semantics (ground, building, vegetation, pole, car, pedestrian, …).
-
-The approach: train on a **labeled** MLS dataset, then **infer on OS data**. The catch is that the labeled datasets were captured with **different LiDAR sensors**, so the model must generalise across sensors.
-
-| Dataset | Role | Sensor | RGB | Labels |
-|---|---|---|---|---|
-| Toronto3D | source | Teledyne Optech Maverick (32-line) | yes (dropped) | yes |
-| Paris-Lille-3D (NPM3D) | source | Velodyne HDL-32E | no | yes |
-| **OS_data (Southampton)** | **target** | **Hesai PandarXT-32** | no | **none** |
-
-Even though all three are 32-beam spinning MLS, their **scan patterns differ** (vertical FOV, beam spacing, density), which a geometry-reliant model overfits — the core problem this repo studies.
+Built on [Pointcept](https://github.com/Pointcept/Pointcept) with the **Point Transformer V3 (PTv3)** backbone, used off the shelf.
 
 ---
 
-## Key results (illustrative)
+## The problem
 
-**1. Cross-sensor domain shift, and a label-free fix.**
-A model trained on one sensor mislabels large flat regions (road / sidewalk / car sides → *Building*) on a different sensor. Training jointly on **both** source sensors + density augmentation fixes most of it — **no target labels needed**.
+Different LiDAR units sample a scene with different beam geometries and report intensity on different scales. A model trained on one sensor overfits that scan pattern and loses accuracy on another. This is acute when the target is unlabelled and comes from a sensor unlike any labelled data, which is exactly the OS case.
 
-![Domain adaptation fixes road→building](assets/domain_adaptation_fix.png)
-*Left: single-source model (road wrongly blue=Building). Right: joint + augmentation (road correctly grey=Ground). Top = bird's-eye, bottom = side elevation.*
+| Dataset | Role | Sensor | Labels |
+|---|---|---|---|
+| Toronto3D | source | Teledyne Optech Maverick | yes |
+| Paris-Lille-3D (NPM3D) | source | Velodyne HDL-32E | yes |
+| WHU-Urban3D | source | Shanghai MLS-S (survey-grade) | yes |
+| **OS (Southampton)** | **target** | **Hesai PandarXT-32** | **none** |
 
-**2. OS prediction with recovered pedestrian class** (class 6 = Pedestrian, red):
+![Single-source models fail on the OS cloud](assets/fig_motivation.png)
+*Each single-source model applied to OS without adaptation. No single source works, and each fails differently.*
 
-![OS prediction example](assets/os_prediction_example.png)
+---
 
-**3. Unified colour scheme** across all models (same meaning → same colour):
+## Unified label space
 
-![Class colour legend](assets/class_color_legend.png)
+The three sources use 8, 9, and 18 classes. We remap all of them to one **11-class** space. A class a source does not annotate is set to an **ignore** label there, not a wrong class, so supervision is partial per source while the model always predicts all 11 classes.
+
+Five classes are annotated by all three sources: **Ground, Building, Natural, Pole, Car**. These form **shared-5**, and every cross-sensor number is computed on shared-5 so each transfer direction is scored on the same label set.
+
+![Unified 11-class label space](assets/fig_unified_labels.png)
+
+---
+
+## Key findings
+
+**Q1. The cross-sensor gap is large.** In a 3x3 transfer matrix, in-domain accuracy averages **0.91** mean IoU and falls to **0.66** across sensors, a drop of about **0.25**.
+
+![3x3 cross-sensor transfer matrix](assets/fig_cross_sensor_gap.png)
+
+**Q2. The loss is class-dependent.** It concentrates on scan-pattern-dependent classes such as poles, cars, and buildings on the most dissimilar sensor, while ground and vegetation transfer well.
+
+**Q3. Target-free multi-sensor training helps.** Under a leave-one-sensor-out (LOSO) protocol, joint training on the available sources raises the held-out shared-5 mIoU by **+0.079** over the realistic average-single baseline (0.664 to 0.743). A standard self-training step on the unlabelled target adds a further **+0.024** (to 0.767), so target-free training already reaches about **97%** of what target-adaptive self-training achieves.
+
+![LOSO qualitative comparison](assets/fig_loso_qualitative.png)
+*Held-out sensor, left to right: ground truth, single source, joint A+B (target-free), joint + self-training.*
+
+**Q4. Intensity does not transfer.** It helps only reflectance-defined classes such as road markings and is the least transferable channel, so all cross-sensor experiments use geometry only (`coord`).
+
+We also found and corrected a building-as-pedestrian labelling error in WHU-Urban3D with a simple height rule (any pedestrian instance taller than 2.5 m is ignored).
+
+---
+
+## Recipes
+
+- **A** = joint training on several source sensors in the unified label space.
+- **B** = density augmentation (random point dropout) on top of A, to mimic density and beam differences.
+- **A+B** = the full recipe used for deployment on OS.
 
 ---
 
@@ -44,25 +63,25 @@ A model trained on one sensor mislabels large flat regions (road / sidewalk / ca
 
 ```
 raw tiles (.ply / .laz)
-   │  preprocess/  ── 0.05 m voxel · per-cloud intensity z-score · 50 m chunks
-   ▼
+   |  preprocess/  -- 0.05 m voxel, per-cloud intensity z-score, 50 m chunks
+   v
 Pointcept DefaultDataset  (coord / strength / segment .npy per scene)
-   │  configs/ + Pointcept tools/train.py  ── PTv3, CE + Lovász
-   ▼
+   |  configs/ + Pointcept tools/train.py  -- PTv3, CE + Lovasz
+   v
 trained model (model_best.pth)
-   │  scripts/infer_osdata*.py  ── voxel forward + KDTree back-projection to full-res
-   ▼
-labeled .laz  +  top-view PNG
-   │  scripts/color_predictions.py  ── bake unified RGB
-   ▼
+   |  scripts/infer_osdata*.py  -- voxel forward + KDTree back-projection to full-res
+   v
+labelled .laz
+   |  scripts/color_predictions.py  -- bake unified RGB
+   v
 coloured .laz (view in CloudCompare)
 ```
 
-Two normalisations make cross-dataset/cross-sensor transfer work:
-- **Coordinates:** subtract a per-cloud min offset, then store `float32` (large UTM/BNG values lose cm precision in `float32` otherwise).
-- **Intensity:** **per-cloud z-score** `(x − μ)/σ` so each sensor's intensity lands at mean 0 / std 1.
+Two normalisations make cross-sensor transfer work:
+- **Coordinates:** subtract a per-cloud min offset, then store `float32` (large UTM/BNG values lose precision otherwise).
+- **Intensity:** per-cloud z-score `(x - mu) / sigma`, so each sensor lands at mean 0, std 1.
 
-Voxel downsampling keeps **one real point per 0.05 m voxel** (first-point, not averaged) so coordinate / intensity / label stay consistent. 50 m chunks are formed by binning points into occupied grid cells (empty space gets no chunk).
+Voxel downsampling keeps one real point per 0.05 m voxel. 50 m chunks are formed from occupied grid cells.
 
 ---
 
@@ -70,32 +89,38 @@ Voxel downsampling keeps **one real point per 0.05 m voxel** (first-point, not a
 
 ```
 preprocess/
-  preprocess_toronto3d.py     Toronto3D .ply  -> DefaultDataset
-  preprocess_npm3d.py         Paris-Lille-3D  -> DefaultDataset
-  preprocess_osdata.py        OS .laz         -> inference chunks
-  build_joint_dataset.py      Toronto + NPM3D -> unified 11-class joint set
-  inspect_tile.py             quick tile inspector
+  preprocess_toronto3d.py     Toronto3D   -> DefaultDataset
+  preprocess_npm3d.py         Paris-Lille-3D
+  preprocess_whu3d.py         WHU-Urban3D
+  preprocess_osdata.py        OS .laz     -> inference chunks
+  build_joint_dataset.py      unified 11-class joint set (recipe A)
+  build_loso.py               leave-one-sensor-out splits
+  build_loso_balanced.py      LOSO with equal chunks per sensor
 configs/
-  semseg-pt-v3-coord{,-intensity}.py          Toronto3D (8 cls)
-  semseg-pt-v3-npm3d-coord{,-intensity}.py    NPM3D (9 cls)
-  semseg-pt-v3-joint-coord{,-intensity}.py    JOINT (11 cls, + density aug)
-  semseg-pt-v3-{,npm3d-}coord-augB.py         single-source + augmentation
+  semseg-pt-v3-<src>-coord{,-intensity}.py   single-source (Toronto / npm3d / whu)
+  semseg-pt-v3-joint-coord{,-intensity}.py   joint (recipe A)
+  semseg-pt-v3-<src>-coord-augB.py           single-source + density aug (recipe B)
+  semseg-pt-v3-all3-AB-coord.py              all sources, A+B (OS deployment model)
+  semseg-pt-v3-loso{1,2,3}{,b}{,-AB}-coord.py  LOSO, recipe A and A+B
+  semseg-pt-v3-uda-<target>-coord.py         self-training on the held-out target
 scripts/
   train.sh                    Pointcept training launcher (multi-GPU)
-  infer_osdata.py             inference (Toronto model) -> labeled .laz + PNG
-  infer_osdata_npm3d.py       inference (NPM3D model, 9 cls)
-  infer_osdata_joint.py       inference (JOINT model, 11 cls)
+  infer_osdata*.py            inference -> labelled .laz (+ top-view PNG)
   color_predictions.py        bake unified RGB into predicted .laz
-  compare_joint_vs_npm3d.py   point-to-point before/after comparison + crop
-  cross_sensor_eval.py        quantitative cross-sensor mIoU (shared classes)
+  val_infer.py                in-domain validation inference
+  cross_sensor_eval.py        pairwise shared-5 mIoU (one source -> one target)
+  xsensor_3x3.py              full 3x3 cross-sensor matrix (Q1, Q2)
+  loso_eval.py                LOSO evaluation, recipe A
+  loso_eval_ab.py             LOSO evaluation, recipe A+B (Q3)
+  pseudo_label.py             confidence-filtered pseudo-labels on the target
+  build_uda_combined.py       sources + pseudo-labelled target -> UDA set
+  uda_eval.py                 self-training evaluation (Q4)
+  export_4629_corrected.py    WHU-Urban3D label-error correction (height rule)
   plot_curves.py              parse train.log -> loss / val-mIoU curves
-notes/
-  *.md                        write-ups (report, experiment plan, results)
-  make_figs_all.py, make_legend_pdf.py, build_*.py   figure / report generators
-assets/                       curated images used in this README
+assets/                       figures used in this README
 ```
 
-> Data (`data/`) and experiment outputs (`exp/`) are **not** tracked (see `.gitignore`).
+> Data (`data/`) and experiment outputs (`exp/`) are not tracked (see `.gitignore`).
 
 ---
 
@@ -104,93 +129,67 @@ assets/                       curated images used in this README
 - Python 3.10, **PyTorch 2.5 + CUDA 12.4**
 - [Pointcept](https://github.com/Pointcept/Pointcept) (clone separately) with `pointops`, `spconv`, optional `flash-attn`
 - `numpy`, `plyfile`, `laspy[lazrs]`, `scipy`, `matplotlib`
-- Tested on 2 × RTX 3090 (24 GB)
+- Tested on 2 x RTX 3090 (24 GB), about 65 min per model
 
 ```bash
-# example conda env
 conda create -n pointcept python=3.10 -y
 conda activate pointcept
 # install torch 2.5 / cu124, then Pointcept ops (pointops, spconv) per their README
 pip install numpy plyfile "laspy[lazrs]" scipy matplotlib
+export PYTHONPATH=/path/to/Pointcept
 ```
 
-> **Paths:** scripts/configs currently use absolute paths (`/home/.../projects/os_seg`, `/home/.../projects/Pointcept`). Adjust them to your machine, or set `PYTHONPATH` to your Pointcept clone. `train.sh` documents the expected env at the top.
+> Scripts and configs use absolute paths for the local machine. Adjust them, or point `PYTHONPATH` at your Pointcept clone.
 
 ---
 
-## Data layout (datasets not included)
+## Data (not included)
 
-Public sources:
 - **Toronto3D** — https://github.com/WeikaiTan/Toronto-3D
 - **Paris-Lille-3D / NPM3D** — https://npm3d.fr
-- **OS_data** — proprietary (Ordnance Survey)
-
-Expected raw locations (override via each script's `--input_root`):
-```
-Toronto3D   *.ply  (x y z, RGB, intensity, label)
-NPM3D       training_10_classes/*.ply  (x y z, reflectance, class)
-OS          *.laz  (x y z, intensity; RGB = 0)
-```
+- **WHU-Urban3D** — https://whu3d.com
+- **OS** — proprietary (Ordnance Survey)
 
 ---
 
 ## Usage
 
-### 1. Preprocess
 ```bash
-python preprocess/preprocess_toronto3d.py --input_root <toronto_ply_dir>
-python preprocess/preprocess_npm3d.py     --input_root <npm3d_dir>/training_10_classes
-python preprocess/preprocess_osdata.py    --input_root <os_laz_dir> --files soton_l1.laz soton_l2.laz
-# optional: joint (sensor-diverse) training set
-python preprocess/build_joint_dataset.py
+# 1. Preprocess each source, then build the training sets
+python preprocess/preprocess_toronto3d.py --input_root <toronto_dir>
+python preprocess/preprocess_npm3d.py     --input_root <npm3d_dir>
+python preprocess/preprocess_whu3d.py     --input_root <whu_dir>
+python preprocess/preprocess_osdata.py    --input_root <os_laz_dir>
+python preprocess/build_joint_dataset.py            # recipe A
+python preprocess/build_loso.py                     # LOSO splits
+
+# 2. Train (Pointcept). Outputs land in exp/<exp_name>/
+bash scripts/train.sh configs/semseg-pt-v3-all3-AB-coord.py all3-AB-coord 2
+
+# 3. Cross-sensor evaluation (shared-5 mIoU)
+python scripts/xsensor_3x3.py            # Q1, Q2: the 3x3 matrix
+python scripts/loso_eval_ab.py           # Q3: LOSO, recipe A+B
+
+# 4. Deploy on OS and colour for viewing
+python scripts/infer_osdata_joint.py --config configs/semseg-pt-v3-all3-AB-coord.py \
+  --weight exp/all3-AB-coord/model/model_best.pth --out_dir exp/osdata_infer_all3
+python scripts/color_predictions.py      # bake unified RGB -> *_rgb.laz
 ```
 
-### 2. Train (Pointcept)
-```bash
-# bash scripts/train.sh <config.py> <exp_name> [num_gpus]
-bash scripts/train.sh configs/semseg-pt-v3-joint-coord-intensity.py joint-ptv3-coord-intensity 2
-```
-Outputs land in `exp/<exp_name>/` (`model/model_best.pth`, `train.log`).
-`python scripts/plot_curves.py exp/<exp_name>` renders loss / val-mIoU curves.
-
-### 3. Infer on OS data
-```bash
-python scripts/infer_osdata_joint.py \
-  --config configs/semseg-pt-v3-joint-coord-intensity.py \
-  --weight exp/joint-ptv3-coord-intensity/model/model_best.pth \
-  --tag coord-intensity --out_dir exp/osdata_infer_joint
-```
-Produces a per-point **labeled `.laz`** (class in the `classification` field) and a top-view PNG.
-
-### 4. Colour for viewing
-```bash
-python scripts/color_predictions.py     # bakes unified RGB -> exp/osdata_infer_colored/
-```
 Open the `_rgb.laz` in CloudCompare and display **Colors → RGB**.
-
-### 5. Quantitative cross-sensor evaluation
-```bash
-python scripts/cross_sensor_eval.py \
-  --src_cfg configs/semseg-pt-v3-npm3d-coord.py \
-  --src_weight exp/npm3d-ptv3-coord/model/model_best.pth --src_space npm \
-  --tgt_val data/toronto3d/val --tgt_space tor --tag "NPM3D->Toronto"
-```
-Reports voxel-level per-class IoU + mIoU over the 5 classes shared by both label spaces.
 
 ---
 
-## Notes & caveats
+## Notes
 
 - **Inference runs in fp32.** fp16/autocast breaks the spconv inference tuner; training in fp16 is fine.
-- **Single-GPU inference** (`CUDA_VISIBLE_DEVICES=0`); training uses DDP across GPUs.
-- **OS_data has no ground truth** — OS predictions are qualitative; quantitative numbers use the labeled source datasets (cross-sensor protocol).
-- RGB is dropped from Toronto3D so all inputs match OS_data's RGB-less condition; features are **coord** (`in_channels=3`) or **coord + intensity** (`in_channels=4`).
+- **OS has no ground truth.** OS predictions are qualitative. All quantitative numbers use the labelled sources under the cross-sensor protocol.
+- Features are **coord** (`in_channels=3`) or **coord + intensity** (`in_channels=4`). Cross-sensor experiments use coord only (Q4).
 
 ---
 
 ## Acknowledgements
 
 - [Pointcept](https://github.com/Pointcept/Pointcept) and **Point Transformer V3** (Wu et al., CVPR 2024)
-- [Toronto3D](https://github.com/WeikaiTan/Toronto-3D) (Tan et al., CVPRW 2020)
-- [Paris-Lille-3D / NPM3D](https://npm3d.fr) (Roynard et al., 2018)
+- [Toronto3D](https://github.com/WeikaiTan/Toronto-3D), [Paris-Lille-3D / NPM3D](https://npm3d.fr), [WHU-Urban3D](https://whu3d.com)
 - Ordnance Survey (target survey data)
