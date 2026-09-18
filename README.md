@@ -117,10 +117,27 @@ scripts/
   uda_eval.py                 self-training evaluation (Q4)
   export_4629_corrected.py    WHU-Urban3D label-error correction (height rule)
   plot_curves.py              parse train.log -> loss / val-mIoU curves
+  eval_heldout.py             shared-5 evaluation of one checkpoint on a held-out sensor
+  sensor_sampling_stats.py    raw per-sensor density / NN spacing / voxel survival (Table: sampling)
+  gen_seed_configs.py, run_seeds.sh, summarize_seeds.py   seed replicates of LOSO Recipe B and self-training
+  release_weights.sh          publish the weights-only checkpoints as a GitHub release
 assets/                       figures used in this README
 ```
 
 > Data (`data/`) and experiment outputs (`exp/`) are not tracked (see `.gitignore`).
+
+## Pretrained weights
+
+Weights-only checkpoints (PTv3, coordinates-only input, about 185 MB each) are published as GitHub release `v1.0-weights`. Each file stores `{"state_dict": ...}` with the `module.` prefix removed and loads into the model built from the matching config.
+
+| File | Trained on | Config |
+|---|---|---|
+| `single_{toronto3d,parislille3d,whuurban3d}_coord.pth` | one source | `semseg-pt-v3-{,npm3d-,whu-}coord.py` |
+| `loso_heldout_<sensor>_recipeB.pth` | the other two sources, Recipe A+B | `semseg-pt-v3-loso{1,2,3}b-AB-coord.py` |
+| `selftrain_heldout_<sensor>.pth` | the other two sources + pseudo-labelled held-out sensor | `semseg-pt-v3-uda-<sensor>-coord.py` |
+| `deploy_threesource_recipeB.pth` | all three sources, Recipe A+B (OS deployment) | `semseg-pt-v3-all3-AB-coord.py` |
+
+The model fitted with Southampton pseudo-labels is not released (proprietary target data). Evaluate a checkpoint on a held-out sensor with `scripts/eval_heldout.py`.
 
 ---
 
