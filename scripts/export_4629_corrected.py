@@ -1,4 +1,8 @@
 """Export WHU-Urban3D scene 4629 before and after the pedestrian height correction."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+os.chdir(ROOT)
 import numpy as np, h5py, os
 from plyfile import PlyData, PlyElement
 from pywhu3d.configs.mls_config import sem_map

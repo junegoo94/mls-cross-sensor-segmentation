@@ -1,8 +1,11 @@
 """Upload the weights-only checkpoints to Hugging Face (run `hf auth login` first)."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import glob, os, sys
 from huggingface_hub import HfApi
 REPO = sys.argv[1] if len(sys.argv) > 1 else "jmgoo1118/mls-cross-sensor-segmentation"
-D = "/home/jmgoo/projects/os_seg/exp/release_weights"
+D = f"{ROOT}/exp/release_weights"
 api = HfApi()
 api.create_repo(REPO, repo_type="model", exist_ok=True)
 api.upload_file(path_or_fileobj=f"{D}/HF_README.md", path_in_repo="README.md", repo_id=REPO)

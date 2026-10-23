@@ -1,10 +1,12 @@
 #!/bin/bash
 # Usage: SEEDS="1 2" bash scripts/run_seeds.sh   (resumable; finished stages are skipped)
 set -e
-cd /home/jmgoo/projects/os_seg
-PY=/home/jmgoo/miniconda3/envs/pointcept-torch2.5.0-cu12.4/bin/python
-export PYTHONPATH=/home/jmgoo/projects/Pointcept
-SEEDS="${SEEDS:-1 2}"; RES=exp/seeds/results.jsonl; ROOT=$(pwd)
+ROOT=$(cd "$(dirname "$0")/.." && pwd); cd "$ROOT"
+PY=${PYTHON:-python}
+export OS_SEG_ROOT=$ROOT POINTCEPT_ROOT=${POINTCEPT_ROOT:-$(dirname "$ROOT")/Pointcept}
+export PYTHONPATH=$POINTCEPT_ROOT
+SEEDS="${SEEDS:-1 2}"; RES=exp/seeds/results.jsonl
+SANITY_W=${SANITY_WEIGHT:-exp/loso1b-AB-coord/model/model_best.pth}
 mkdir -p exp/seeds data/seeds configs/seeds
 $PY scripts/gen_seed_configs.py $SEEDS
 declare -A X=([1]=toronto [2]=npm3d [3]=whu)
@@ -13,8 +15,8 @@ declare -A VAL=([1]=data/uni_toronto/val [2]=data/uni_npm3d/val [3]=data/whu3d/v
 declare -A TGT=([1]=data/uni_toronto/train [2]=data/uni_npm3d/train [3]=data/whu3d/train)
 log(){ echo "[$(date '+%F %T')] $*" | tee -a exp/seeds/progress.log; }
 has(){ grep -q "\"tag\": \"$1\"" $RES 2>/dev/null; }
-if ! has sanity_loso1b_seed0; then log "stage0 sanity eval (expect ~0.706)"
-  $PY scripts/eval_heldout.py --cfg configs/semseg-pt-v3-loso1b-AB-coord.py --weight exp/loso1b-AB-coord/model/model_best.pth --val data/uni_toronto/val --tag sanity_loso1b_seed0 --out $RES; fi
+if ! has sanity_loso1b_seed0 && [ -f "$SANITY_W" ]; then log "stage0 sanity eval (expect ~0.706)"
+  $PY scripts/eval_heldout.py --cfg configs/semseg-pt-v3-loso1b-AB-coord.py --weight "$SANITY_W" --val data/uni_toronto/val --tag sanity_loso1b_seed0 --out $RES; fi
 for s in $SEEDS; do for f in 1 2 3; do
   x=${X[$f]}; n=${NAME[$f]}
   dg=exp/seeds/loso${f}b-AB-coord-s$s; ud=exp/seeds/uda-${x}-coord-s$s

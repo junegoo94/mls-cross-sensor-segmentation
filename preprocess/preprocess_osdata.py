@@ -1,5 +1,8 @@
 """Unlabelled OS LAZ files to Pointcept format for inference, with the same pipeline as the sources."""
 import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+import os
 import json
 import argparse
 import numpy as np
@@ -34,11 +37,9 @@ def chunk_indices(coord_xy, size):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input_root", default="/home/jmgoo/OS_data/ordnance_survey")
-    ap.add_argument("--files", nargs="+",
-                    default=["soton_l1_5cm_bng_442_111_shift.laz",
-                             "soton_l2_bng_442_111.laz"])
-    ap.add_argument("--output_root", default="/home/jmgoo/projects/os_seg/data/osdata")
+    ap.add_argument("--input_root", required=True)
+    ap.add_argument("--files", nargs="+", default=None, help="file names in input_root (default: every .las/.laz)")
+    ap.add_argument("--output_root", default=f"{ROOT}/data/osdata")
     ap.add_argument("--grid_size", type=float, default=GRID)
     ap.add_argument("--chunk_size", type=float, default=CHUNK)
     args = ap.parse_args()
@@ -48,7 +49,8 @@ def main():
     os.makedirs(infer_dir, exist_ok=True)
     total_scenes = 0
 
-    for fname in args.files:
+    files = args.files or sorted(f for f in os.listdir(args.input_root) if f.lower().endswith((".las", ".laz")))
+    for fname in files:
         stem = os.path.splitext(fname)[0]
         path = os.path.join(args.input_root, fname)
         print(f"\n>> reading {fname} ...")

@@ -1,5 +1,8 @@
 """Predict a preprocessed point cloud with a Paris-Lille-3D model and write labelled LAZ files."""
 import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+import os
 import sys
 import glob
 import json
@@ -9,6 +12,8 @@ import torch
 import laspy
 from scipy.spatial import cKDTree
 
+import sys
+sys.path.insert(0, POINTCEPT)
 from pointcept.utils.config import Config
 from pointcept.models import build_model
 from pointcept.datasets.transform import Compose
@@ -91,8 +96,8 @@ def main():
     ap.add_argument("--config", required=True)
     ap.add_argument("--weight", required=True)
     ap.add_argument("--tag", required=True, help="output tag, e.g. coord or coord-intensity")
-    ap.add_argument("--data_root", default="/home/jmgoo/projects/os_seg/data/osdata")
-    ap.add_argument("--out_dir", default="/home/jmgoo/projects/os_seg/exp/osdata_infer")
+    ap.add_argument("--data_root", default=f"{ROOT}/data/osdata")
+    ap.add_argument("--out_dir", default=f"{ROOT}/exp/osdata_infer")
     args = ap.parse_args()
 
     device = "cuda"

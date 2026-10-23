@@ -1,5 +1,8 @@
 """Paris-Lille-3D to Pointcept format: 5 cm voxels, unified labels, per-cloud intensity z-score, 50 m chunks."""
 import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+import os
 import json
 import argparse
 import numpy as np
@@ -78,9 +81,9 @@ def chunk_indices(coord_xy, size, stride, min_points):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input_root",
-                    default="/home/jmgoo/paris_lille_3d/training_10_classes")
+                    required=True)
     ap.add_argument("--output_root",
-                    default="/home/jmgoo/projects/os_seg/data/npm3d")
+                    default=f"{ROOT}/data/npm3d")
     ap.add_argument("--chunk_size", type=float, default=50.0)
     ap.add_argument("--chunk_stride", type=float, default=25.0)
     ap.add_argument("--min_points", type=int, default=10000)

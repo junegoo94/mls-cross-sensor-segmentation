@@ -80,10 +80,13 @@ hf download jmgoo1118/mls-cross-sensor-segmentation --local-dir weights/
 conda create -n pointcept python=3.10 -y && conda activate pointcept
 # install torch 2.5 / cu124, then the Pointcept ops (pointops, spconv) following their README
 pip install numpy scipy plyfile "laspy[lazrs]" h5py matplotlib huggingface_hub
-git clone https://github.com/Pointcept/Pointcept.git && export PYTHONPATH=$PWD/Pointcept
+# Pointcept at the exact commit used in the paper, cloned next to this repository
+git clone https://github.com/Pointcept/Pointcept.git
+cd Pointcept && git checkout d7272257058337969292865e0892b91d2f362b6a && cd ..
+git clone https://github.com/junegoo94/mls-cross-sensor-segmentation.git
 ```
 
-Scripts and configs contain absolute paths from our machine. Set the data and output paths at the top of each file, or pass them as arguments where available.
+No paths need editing. Every script finds this repository from its own location and expects Pointcept in a sibling folder named `Pointcept`. To use another location, set `POINTCEPT_ROOT`. Raw datasets are passed as command-line arguments. `scripts/train.sh` uses the `python` of the active environment (or `$PYTHON`).
 
 ## Data
 
@@ -108,6 +111,7 @@ python preprocess/build_all3_balanced.py      # all three sensors, for the deplo
 ```
 
 ### 2. Train
+Each config pins the random seed of the run reported in the paper. GPU kernels are not fully deterministic, so a rerun matches the paper within the seed-to-seed spread we report (about ±0.01 shared-5 mIoU).
 ```bash
 # bash scripts/train.sh <config> <experiment name> [num_gpus]
 bash scripts/train.sh configs/semseg-pt-v3-loso3b-AB-coord.py loso3b-AB-coord 2
@@ -121,6 +125,7 @@ python scripts/eval_heldout.py --cfg configs/semseg-pt-v3-loso3b-AB-coord.py \
 python scripts/xsensor_3x3.py        # full 3x3 transfer matrix
 python scripts/loso_eval_ab.py       # LOSO, Recipe B, against the single-source baselines
 ```
+Run all commands from the repository root.
 All scores are shared-5 mIoU at the voxel level without test-time augmentation.
 
 ### 4. Seed replicates and self-training
@@ -138,6 +143,23 @@ python scripts/infer_osdata_joint.py --config configs/semseg-pt-v3-all3-AB-coord
 python scripts/color_predictions.py       # optional: bake the unified class colours into the .laz
 ```
 Predictions are made on 5 cm voxels and propagated back to every input point by nearest neighbour. Inference runs in fp32.
+
+---
+
+## Reproducing the paper
+
+| Result | Script | Models (config) |
+|---|---|---|
+| Class balance per source | `scripts/class_prevalence.py` | none |
+| Sampling statistics per sensor | `scripts/sensor_sampling_stats.py --toronto … --paris … --whu …` | none |
+| In-domain results (Toronto3D, Paris-Lille-3D) | `train.log` of each run (Pointcept test at the end of training) | `semseg-pt-v3-{,npm3d-}coord{,-intensity}.py` |
+| In-domain results (WHU-Urban3D) | `scripts/whu_val_clean.py` | `semseg-pt-v3-whu-coord{,-intensity}.py` |
+| 3x3 cross-sensor transfer and heatmap | `scripts/xsensor_3x3.py` | single-source coord models |
+| LOSO per-class results and summary, Recipe B | `scripts/loso_eval_ab.py` | `semseg-pt-v3-loso{1,2,3}b-AB-coord.py` |
+| Ablation: Recipe A, unbalanced and balanced | `scripts/loso_eval.py`, `scripts/loso_eval_b.py` | `loso{1,2,3}-coord.py`, `loso{1,2,3}b-coord.py` |
+| Held-out means with self-training | `scripts/pseudo_label.py` → `build_uda_combined.py` → train → `eval_heldout.py` | `semseg-pt-v3-uda-<sensor>-coord.py` |
+| Three-seed statistics | `scripts/run_seeds.sh`, `scripts/summarize_seeds.py` | as above, seeds 1 and 2 |
+| WHU-Urban3D label correction | built into `preprocess/preprocess_whu3d.py` | none |
 
 ---
 

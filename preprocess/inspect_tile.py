@@ -3,8 +3,7 @@ import sys
 import numpy as np
 from plyfile import PlyData
 
-path = sys.argv[1] if len(sys.argv) > 1 else \
-    "/home/jmgoo/toronto3D_JM/initial_point_clouds/L004.ply"
+path = sys.argv[1]
 
 print(f"reading {path} ...")
 ply = PlyData.read(path)

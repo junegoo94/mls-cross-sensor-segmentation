@@ -1,5 +1,6 @@
 """Single source Toronto3D, coordinates and intensity."""
-_base_ = ["/home/jmgoo/projects/Pointcept/configs/_base_/default_runtime.py"]
+from os import environ as __env
+_base_ = [__env.get("POINTCEPT_ROOT", "../../Pointcept") + "/configs/_base_/default_runtime.py"]
 
 batch_size = 8
 num_worker = 16
@@ -62,7 +63,7 @@ scheduler = dict(
 param_dicts = [dict(keyword="block", lr=0.0002)]
 
 dataset_type = "DefaultDataset"
-data_root = "/home/jmgoo/projects/os_seg/data/toronto3d"
+data_root = __env["OS_SEG_ROOT"] + "/data/toronto3d"
 ignore_index = -1
 names = ["Ground", "Road_markings", "Natural", "Building",
          "Utility_line", "Pole", "Car", "Fence"]
@@ -143,3 +144,4 @@ data = dict(
         ignore_index=ignore_index,
     ),
 )
+seed = 6893688

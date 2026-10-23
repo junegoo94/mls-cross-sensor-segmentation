@@ -1,4 +1,7 @@
 """WHU-Urban3D (MLS-S) to Pointcept format, including the pedestrian height correction."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import os, json, glob, argparse, numpy as np, h5py
 
 CLASS_NAMES = ["Ground","Building","Natural","Pole","Car","Fence_Barrier",
@@ -86,9 +89,9 @@ def save_scene(out_dir, coord, strength, segment):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input_root",
-                    default="/home/jmgoo/projects/os_seg/data/whu3d_download/extracted/mls/h5")
+                    required=True)
     ap.add_argument("--output_root",
-                    default="/home/jmgoo/projects/os_seg/data/whu3d")
+                    default=f"{ROOT}/data/whu3d")
     ap.add_argument("--chunk_size", type=float, default=50.0)
     ap.add_argument("--chunk_stride", type=float, default=25.0)
     ap.add_argument("--min_points", type=int, default=10000)

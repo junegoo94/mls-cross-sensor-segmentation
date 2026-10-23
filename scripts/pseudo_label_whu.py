@@ -1,6 +1,10 @@
 """Pseudo-label WHU-Urban3D training scenes with the LOSO fold-3 model."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+os.chdir(ROOT)
 import os, glob, numpy as np, torch, sys
-sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
+sys.path.insert(0, POINTCEPT)
 from pointcept.utils.config import Config
 from pointcept.models import build_model
 from pointcept.datasets.transform import Compose

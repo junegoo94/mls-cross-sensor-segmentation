@@ -1,10 +1,13 @@
 """Write the unified class colours into predicted LAZ files."""
 import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+import os
 import glob
 import numpy as np
 import laspy
 
-OUT_ROOT = "/home/jmgoo/projects/os_seg/exp/final_results/osdata_infer_colored"
+OUT_ROOT = f"{ROOT}/exp/final_results/osdata_infer_colored"
 
 SEMANTIC_COLOR = {
     "Ground":        (128, 128, 128),
@@ -30,10 +33,10 @@ JOINT_NAMES = ["Ground", "Building", "Natural", "Pole", "Car", "Fence_Barrier",
                "Road_markings", "Utility_line", "Bollard", "Trash_can", "Pedestrian"]
 
 SOURCES = {
-    "toronto": ("/home/jmgoo/projects/os_seg/exp/osdata_infer", TORONTO_NAMES),
-    "npm3d":   ("/home/jmgoo/projects/os_seg/exp/osdata_infer_npm3d", NPM3D_NAMES),
-    "joint":   ("/home/jmgoo/projects/os_seg/exp/osdata_infer_joint", JOINT_NAMES),
-    "all3":    ("/home/jmgoo/projects/os_seg/exp/osdata_infer_all3", JOINT_NAMES),
+    "toronto": (f"{ROOT}/exp/osdata_infer", TORONTO_NAMES),
+    "npm3d":   (f"{ROOT}/exp/osdata_infer_npm3d", NPM3D_NAMES),
+    "joint":   (f"{ROOT}/exp/osdata_infer_joint", JOINT_NAMES),
+    "all3":    (f"{ROOT}/exp/osdata_infer_all3", JOINT_NAMES),
 }
 
 def build_lut(names):

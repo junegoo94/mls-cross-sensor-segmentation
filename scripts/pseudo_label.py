@@ -1,6 +1,9 @@
 """Pseudo-label unlabelled target scenes, keeping points above a confidence threshold."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import os, glob, argparse, numpy as np, torch, sys
-sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
+sys.path.insert(0, POINTCEPT)
 from pointcept.utils.config import Config
 from pointcept.models import build_model
 from pointcept.datasets.transform import Compose

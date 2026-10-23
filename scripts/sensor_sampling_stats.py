@@ -1,9 +1,12 @@
 """Raw sampling statistics per sensor: density, nearest-neighbour spacing, and 5 cm voxel survival."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import numpy as np, json, os, glob, time
 from scipy.spatial import cKDTree
 from plyfile import PlyData
 import h5py, laspy
-OUT="/home/jmgoo/projects/os_seg/exp/final_results/sampling_stats"; os.makedirs(OUT,exist_ok=True)
+OUT=f"{ROOT}/exp/final_results/sampling_stats"; os.makedirs(OUT,exist_ok=True)
 GRID=0.05; CELL=1.0; NWIN=4; WIN=60.0; MARGIN=3.0; NQ=100_000
 rng=np.random.RandomState(0)
 
@@ -36,12 +39,19 @@ def h5_xyz(p):
 def laz_xyz(p):
     l=laspy.read(p); return np.stack([np.asarray(l.x),np.asarray(l.y),np.asarray(l.z)],1)
 
+import argparse
+ap=argparse.ArgumentParser()
+ap.add_argument("--toronto",required=True,help="Toronto3D initial_point_clouds dir")
+ap.add_argument("--paris",required=True,help="Paris-Lille-3D training_10_classes dir")
+ap.add_argument("--whu",required=True,help="WHU-Urban3D mls/h5 dir")
+ap.add_argument("--os",default=None,help="optional dir of target .laz files")
+A=ap.parse_args()
 SETS={
- "Toronto3D":(sorted(glob.glob("/home/jmgoo/toronto3D_JM/initial_point_clouds/L00*.ply")),ply_xyz),
- "Paris-Lille-3D":(sorted(glob.glob("/home/jmgoo/paris_lille_3d/training_10_classes/*.ply")),ply_xyz),
- "WHU-Urban3D":(sorted(glob.glob("/home/jmgoo/projects/os_seg/data/whu3d_download/extracted/mls/h5/*.h5")),h5_xyz),
- "OS-Southampton":(sorted(glob.glob("/home/jmgoo/OS_data/ordnance_survey/*.laz")),laz_xyz),
+ "Toronto3D":(sorted(glob.glob(f"{A.toronto}/L00*.ply")),ply_xyz),
+ "Paris-Lille-3D":(sorted(glob.glob(f"{A.paris}/*.ply")),ply_xyz),
+ "WHU-Urban3D":(sorted(glob.glob(f"{A.whu}/*.h5")),h5_xyz),
 }
+if A.os: SETS["OS-Southampton"]=(sorted(glob.glob(f"{A.os}/*.laz")),laz_xyz)
 summary={}
 for name,(files,reader) in SETS.items():
     per=[]; pooled=[]; t0=time.time()

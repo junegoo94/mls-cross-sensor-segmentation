@@ -1,10 +1,13 @@
 """Joint Toronto3D + Paris-Lille-3D training set in the unified label space."""
 import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
+import os
 import glob
 import json
 import numpy as np
 
-OS_SEG = "/home/jmgoo/projects/os_seg"
+OS_SEG = ROOT
 TOR = f"{OS_SEG}/data/toronto3d"
 NPM = f"{OS_SEG}/data/npm3d"
 OUT = f"{OS_SEG}/data/joint"

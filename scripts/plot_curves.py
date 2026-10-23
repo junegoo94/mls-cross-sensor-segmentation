@@ -7,8 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-exp = sys.argv[1] if len(sys.argv) > 1 else \
-    "/home/jmgoo/projects/os_seg/exp/toronto3d-ptv3-coord"
+exp = sys.argv[1]
 log = os.path.join(exp, "train.log")
 out = os.path.join(exp, "curves.png")
 name = os.path.basename(exp)

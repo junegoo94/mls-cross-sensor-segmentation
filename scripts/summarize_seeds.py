@@ -1,6 +1,9 @@
 """Mean and standard deviation over training seeds for the LOSO and self-training gains."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import json, numpy as np, sys, collections
-RES = "/home/jmgoo/projects/os_seg/exp/seeds/results.jsonl"
+RES = f"{ROOT}/exp/seeds/results.jsonl"
 AVG_SINGLE = {"Toronto": 0.658, "NPM3D": 0.714, "WHU": 0.619}
 PUB = {"dg": {"Toronto": 0.706, "NPM3D": 0.836, "WHU": 0.688},
        "uda": {"Toronto": 0.725, "NPM3D": 0.869, "WHU": 0.707}}
@@ -32,4 +35,4 @@ print(f"  DG - avg      {ms(DG.mean(1) - avg)}")
 print(f"  UDA - DG      {ms(UD.mean(1) - DG.mean(1))}")
 print(f"  DG / UDA      {ms(DG.mean(1) / UD.mean(1))}")
 json.dump({"seeds": seeds, "dg": DG.tolist(), "uda": UD.tolist(), "avg_single_mean": avg},
-          open("/home/jmgoo/projects/os_seg/exp/seeds/summary.json", "w"), indent=1)
+          open(f"{ROOT}/exp/seeds/summary.json", "w"), indent=1)

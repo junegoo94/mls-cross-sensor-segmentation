@@ -1,7 +1,10 @@
 """Balanced LOSO folds with the same number of chunks per sensor."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import os, glob, numpy as np
 
-OS_SEG = "/home/jmgoo/projects/os_seg"
+OS_SEG = ROOT
 UNI = {"tor": f"{OS_SEG}/data/uni_toronto",
        "npm": f"{OS_SEG}/data/uni_npm3d",
        "whu": f"{OS_SEG}/data/whu3d"}

@@ -1,7 +1,10 @@
 """Remap each source to the unified label space and build the leave-one-sensor-out folds."""
+import os
+ROOT = os.environ.setdefault("OS_SEG_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+POINTCEPT = os.environ.setdefault("POINTCEPT_ROOT", os.path.join(os.path.dirname(ROOT), "Pointcept"))
 import os, glob, numpy as np
 
-OS_SEG = "/home/jmgoo/projects/os_seg"
+OS_SEG = ROOT
 UNIFIED = ["Ground","Building","Natural","Pole","Car","Fence_Barrier",
            "Road_markings","Utility_line","Bollard","Trash_can","Pedestrian"]
 TOR_MAP = {0:0,1:6,2:2,3:1,4:7,5:3,6:4,7:5}

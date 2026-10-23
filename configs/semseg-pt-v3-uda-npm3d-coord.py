@@ -1,5 +1,6 @@
 """Self-training: Toronto3D + WHU-Urban3D + pseudo-labelled Paris-Lille-3D, Recipe B."""
-_base_ = ["/home/jmgoo/projects/Pointcept/configs/_base_/default_runtime.py"]
+from os import environ as __env
+_base_ = [__env.get("POINTCEPT_ROOT", "../../Pointcept") + "/configs/_base_/default_runtime.py"]
 
 batch_size = 8
 num_worker = 16
@@ -62,7 +63,7 @@ scheduler = dict(
 param_dicts = [dict(keyword="block", lr=0.0002)]
 
 dataset_type = "DefaultDataset"
-data_root = "/home/jmgoo/projects/os_seg/data/uda_npm3d"
+data_root = __env["OS_SEG_ROOT"] + "/data/uda_npm3d"
 ignore_index = -1
 names = ["Ground", "Building", "Natural", "Pole", "Car", "Fence_Barrier",
          "Road_markings", "Utility_line", "Bollard", "Trash_can", "Pedestrian"]
@@ -144,3 +145,4 @@ data = dict(
         ignore_index=ignore_index,
     ),
 )
+seed = 32571899
