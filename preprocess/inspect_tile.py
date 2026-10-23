@@ -1,4 +1,4 @@
-"""Toronto3D PLY 한 타일을 읽어 통계 출력 (전처리 설계용)."""
+"""Print basic statistics of a raw tile: extent, point count, and voxel occupancy."""
 import sys
 import numpy as np
 from plyfile import PlyData
@@ -36,13 +36,11 @@ for u, c in zip(uq, cnt):
     nm = names[u] if 0 <= u < len(names) else "?"
     print(f"  {u:>3} {nm:<14} {c:>12,}  ({100*c/n:5.2f}%)")
 
-# 대략적 포인트 간격 추정: 랜덤 100k 샘플로 최근접 격자 점유율
-print("\n== voxel 점유율 (점/박스, 다양한 voxel) ==")
+print("\n== voxel occupancy for several grid sizes ==")
 coord = np.stack([x, y, z], 1)
 coord = coord - coord.min(0)
 for g in [0.02, 0.03, 0.05, 0.08, 0.10]:
     keys = np.floor(coord / g).astype(np.int64)
-    # 고유 voxel 수 추정 (해시)
     h = keys[:,0]*73856093 ^ keys[:,1]*19349663 ^ keys[:,2]*83492791
     nu = np.unique(h).size
-    print(f"  grid={g:>4}m -> voxels={nu:>12,}  유지율={100*nu/n:5.1f}%")
+    print(f"  grid={g:>4}m -> voxels={nu:>12,}  kept={100*nu/n:5.1f}%")

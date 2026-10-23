@@ -1,9 +1,8 @@
 #!/bin/bash
-# Toronto3D PTv3 학습 런처
-# 사용법: bash train.sh <config.py> <exp_name> [num_gpus]
+# Usage: bash scripts/train.sh <config.py> <exp_name> [num_gpus]
 set -e
-CFG=${1:?config 경로}
-EXP=${2:?exp 이름}
+CFG=${1:?config path}
+EXP=${2:?experiment name}
 NGPU=${3:-2}
 
 PE=/home/jmgoo/miniconda3/envs/pointcept-torch2.5.0-cu12.4

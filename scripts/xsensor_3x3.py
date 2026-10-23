@@ -1,5 +1,4 @@
-"""3x3 cross-sensor NoAdapt 매트릭스 (single-source 모델, shared-5, voxel-level, no TTA).
-각 단일소스 모델을 3개 센서 val에 평가 → shared-5 mIoU 매트릭스."""
+"""Full 3x3 cross-sensor transfer matrix (shared-5 mIoU)."""
 import os, glob, numpy as np, torch, sys
 sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -10,15 +9,15 @@ from pointcept.datasets.utils import point_collate_fn
 SHARED=["Ground","Building","Natural","Pole","Car"]
 TOR2S={0:0,2:2,3:1,5:3,6:4}
 NPM2S={0:0,1:1,2:3,7:4,8:2}
-WHU2S={0:0,1:1,2:2,3:3,4:4}   # unified 11 -> shared-5
+WHU2S={0:0,1:1,2:2,3:3,4:4}
 MAP={"tor":TOR2S,"npm":NPM2S,"whu":WHU2S}
 
-MODELS={  # name: (cfg, weight, space)
+MODELS={
  "Toronto":("configs/semseg-pt-v3-coord.py","exp/toronto3d-ptv3-coord/model/model_best.pth","tor"),
  "NPM3D":  ("configs/semseg-pt-v3-npm3d-coord.py","exp/npm3d-ptv3-coord/model/model_best.pth","npm"),
  "WHU":    ("configs/semseg-pt-v3-whu-coord.py","exp/whu-ptv3-coord/model/model_best.pth","whu"),
 }
-VALS={  # name: (val_dir, space)
+VALS={
  "Toronto":("data/toronto3d/val","tor"),
  "NPM3D":  ("data/npm3d/val","npm"),
  "WHU":    ("data/whu3d/val","whu"),
@@ -62,4 +61,4 @@ print("\n===== 3x3 NoAdapt shared-5 mIoU (row=train model, col=test sensor) ====
 hdr="train\\test"; print(f"{hdr:>10} "+" ".join(f"{v:>9}" for v in VALS))
 for mn in MODELS:
     print(f"{mn:>10} "+" ".join(f"{mat[(mn,vn)][0]:>9.3f}"+("*" if mn==vn else " ") for vn in VALS))
-print("(* = in-domain 대각선)")
+print("(* = in-domain diagonal)")

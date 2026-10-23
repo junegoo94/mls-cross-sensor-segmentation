@@ -1,5 +1,4 @@
-"""Seed replicates: copy the LOSO Recipe-B and UDA configs, pin `seed`, and point the
-UDA copies at the seed-specific pseudo-labelled training set."""
+"""Copy the LOSO Recipe B and self-training configs with a pinned seed."""
 import os, sys
 seeds = [int(s) for s in sys.argv[1:]] or [1, 2]
 os.makedirs("configs/seeds", exist_ok=True)

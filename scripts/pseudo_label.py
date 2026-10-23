@@ -1,3 +1,4 @@
+"""Pseudo-label unlabelled target scenes, keeping points above a confidence threshold."""
 import os, glob, argparse, numpy as np, torch, sys
 sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -32,4 +33,4 @@ for sc in pick:
         if os.path.islink(d) or os.path.exists(d): os.remove(d)
         os.symlink(os.path.abspath(f"{sc}/{asset}"),d)
     np.save(os.path.join(dst,"segment.npy"),pseudo)
-print(f">> {a.out}: {len(pick)} scenes, pseudo 채택 {100*kept/tot:.1f}% (conf>={a.thr})")
+print(f">> {a.out}: {len(pick)} scenes, pseudo-labels kept {100*kept/tot:.1f}% (conf>={a.thr})")

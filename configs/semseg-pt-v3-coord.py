@@ -1,18 +1,7 @@
-"""
-Toronto3D PTv3 — coord-only 입력 (in_channels=3, geometry only).
-- 데이터: projects/os_seg/data/toronto3d (DefaultDataset 포맷, 0.05m voxel)
-- 8 classes (0..7) + ignore(-1)
-- 야외 MLS 증강 (nuscenes PTv3 기반), CE + Lovasz loss (불균형 대응)
-- intensity 미사용 → 센서 도메인 갭에 가장 강건 (OS_data 전이 baseline)
-- 짝 config: semseg-pt-v3-coord-intensity.py (coord+strength, in_channels=4)
-
-* Pointcept tools/train.py 로 실행. RTX 3090 x2 기준.
-* enable_flash=True (flash-attn prebuilt wheel 설치됨)
-"""
+"""Single source Toronto3D, coordinates only."""
 _base_ = ["/home/jmgoo/projects/Pointcept/configs/_base_/default_runtime.py"]
 
-# ---- misc ----
-batch_size = 8          # 전체 GPU 합산 (3090 x2 → 4/GPU)
+batch_size = 8
 num_worker = 16
 mix_prob = 0.8
 empty_cache = False
@@ -20,14 +9,13 @@ enable_amp = True
 enable_wandb = False
 evaluate = True
 
-# ---- model (변형에서 in_channels override) ----
 model = dict(
     type="DefaultSegmentorV2",
     num_classes=8,
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=3,                       # coord-only
+        in_channels=3,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -47,7 +35,7 @@ model = dict(
         shuffle_orders=True,
         pre_norm=True,
         enable_rpe=False,
-        enable_flash=True,                   # flash-attn (prebuilt wheel) 설치됨
+        enable_flash=True,
         upcast_attention=False,
         upcast_softmax=False,
         enc_mode=False,
@@ -60,7 +48,6 @@ model = dict(
     ],
 )
 
-# ---- schedule ----
 epoch = 100
 eval_epoch = 100
 optimizer = dict(type="AdamW", lr=0.002, weight_decay=0.005)
@@ -74,14 +61,12 @@ scheduler = dict(
 )
 param_dicts = [dict(keyword="block", lr=0.0002)]
 
-# ---- dataset ----
 dataset_type = "DefaultDataset"
 data_root = "/home/jmgoo/projects/os_seg/data/toronto3d"
 ignore_index = -1
 names = ["Ground", "Road_markings", "Natural", "Building",
          "Utility_line", "Pole", "Car", "Fence"]
 
-# coord-only: 좌표만 feature 로 사용 (strength 미사용)
 feat_keys = ("coord",)
 
 data = dict(

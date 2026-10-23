@@ -1,7 +1,4 @@
-"""Per-sensor raw sampling statistics (reviewer request): raw point count, occupied
-footprint (1 m cells), mean density, median nearest-neighbour spacing, and the share
-of points that survive the 5 cm voxel grid. NN spacing is measured inside random
-60 m windows (all points kept, 3 m margin) so it reflects the true local sampling."""
+"""Raw sampling statistics per sensor: density, nearest-neighbour spacing, and 5 cm voxel survival."""
 import numpy as np, json, os, glob, time
 from scipy.spatial import cKDTree
 from plyfile import PlyData
@@ -62,7 +59,6 @@ for name,(files,reader) in SETS.items():
     json.dump(summary,open(f"{OUT}/sampling_stats.json","w"),indent=1)
     print(f"==> {name}: n={N/1e6:.1f}M area={A/1e3:.1f}k m2 density={N/A:.0f} pts/m2 nn_med={summary[name]['nn_med_cm']:.2f} cm "
           f"(IQR {summary[name]['nn_p25_cm']:.2f}-{summary[name]['nn_p75_cm']:.2f}) survival={100*NV/N:.1f}% pts/voxel={N/NV:.2f}",flush=True)
-# LaTeX rows
 with open(f"{OUT}/sampling_stats_rows.tex","w") as fo:
     for k,s in summary.items():
         fo.write(f"{k} & {s['n']/1e6:.1f} & {s['area_m2']/1e3:.1f} & {s['density']:.0f} & {s['nn_med_cm']:.1f} ({s['nn_p25_cm']:.1f}--{s['nn_p75_cm']:.1f}) & {s['pts_per_voxel']:.2f} & {100*s['voxel_survival']:.0f}\\\\\n")

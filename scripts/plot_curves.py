@@ -1,4 +1,4 @@
-"""Pointcept train.log 파싱 → train loss / val mIoU 곡선 PNG 저장."""
+"""Plot training loss and validation mIoU from a Pointcept train.log."""
 import re
 import sys
 import os
@@ -13,9 +13,9 @@ log = os.path.join(exp, "train.log")
 out = os.path.join(exp, "curves.png")
 name = os.path.basename(exp)
 
-train_loss = []   # (epoch, iter_global, loss)
-epoch_loss = {}   # epoch -> [losses]
-val = []          # (epoch, mIoU, mAcc, allAcc)
+train_loss = []
+epoch_loss = {}
+val = []
 
 cur_epoch = 0
 for line in open(log):
@@ -36,21 +36,18 @@ print(f"parsed: {len(train_loss)} train iters, {len(val)} val evals")
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
-# 1) train loss
 ax = axes[0]
 if train_loss:
     gi, ls = zip(*train_loss)
     ax.plot(gi, ls, color="#bbb", lw=0.6, label="per-iter")
     eps = sorted(epoch_loss)
-    nit = max(re.findall(r"/(\d+)\]", "") or [1])  # unused
+    nit = max(re.findall(r"/(\d+)\]", "") or [1])
     em = [np.mean(epoch_loss[e]) for e in eps]
-    # epoch 평균을 global iter 위치에 대략 매핑
     ax.plot([e * len(epoch_loss[e]) for e in eps], em,
             color="C0", lw=2, marker="o", ms=3, label="per-epoch mean")
 ax.set_xlabel("iteration"); ax.set_ylabel("train loss")
 ax.set_title(f"{name}\nTrain loss"); ax.grid(alpha=0.3); ax.legend()
 
-# 2) val metrics
 ax = axes[1]
 if val:
     ve, vmiou, vmacc, vacc = zip(*val)

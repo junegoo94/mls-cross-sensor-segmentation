@@ -1,3 +1,4 @@
+"""Combine a labelled LOSO training set with a pseudo-labelled target for self-training."""
 import os,glob,argparse
 ap=argparse.ArgumentParser(); ap.add_argument("--loso_dir",required=True); ap.add_argument("--pseudo",required=True); ap.add_argument("--out",required=True)
 a=ap.parse_args()

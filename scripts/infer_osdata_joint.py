@@ -1,16 +1,4 @@
-"""
-학습된 JOINT PTv3 모델로 OS_data 추론 (11-class 통합) → 라벨링된 LAZ + top-view PNG 저장.
-
-사용:
-  python infer_osdata.py --config <cfg.py> --weight <model_best.pth> --tag coord
-
-처리 흐름:
-  전처리된 voxel 청크(data/osdata/infer/<file>_xYY) 마다
-   → 학습과 동일 transform(CenterShift+GridSample) → 모델 forward → voxel 예측
-   → 파일 단위로 모아서 원본 full-res LAZ 점에 KDTree NN 역매핑
-   → classification 필드에 예측 클래스 넣어 LAZ 저장 + top-view 시각화 PNG
-대용량 청크는 OOM 시 x중앙값 기준 재귀 공간분할로 처리.
-"""
+"""Predict a preprocessed point cloud with an 11-class model and write labelled LAZ files."""
 import os
 import sys
 import glob
@@ -28,22 +16,20 @@ from pointcept.datasets.utils import point_collate_fn
 
 CLASS_NAMES = ["Ground", "Building", "Natural", "Pole", "Car", "Fence_Barrier",
                "Road_markings", "Utility_line", "Bollard", "Trash_can", "Pedestrian"]
-# JOINT 11-class 색 (RGB 0-1) — 공통 팔레트와 동일. Pedestrian 빨강.
 CLASS_COLORS = np.array([
-    [0.50, 0.50, 0.50],  # 0 Ground - gray
-    [0.00, 0.00, 0.90],  # 1 Building - blue
-    [0.12, 0.55, 0.12],  # 2 Natural - green
-    [0.94, 0.20, 0.90],  # 3 Pole - magenta
-    [0.96, 0.51, 0.12],  # 4 Car - orange
-    [0.55, 0.27, 0.08],  # 5 Fence_Barrier - brown
-    [0.00, 0.90, 0.90],  # 6 Road_markings - cyan
-    [0.63, 0.90, 0.16],  # 7 Utility_line - yellow-green
-    [0.59, 0.24, 0.78],  # 8 Bollard - purple
-    [0.94, 0.55, 0.78],  # 9 Trash_can - pink
-    [0.90, 0.08, 0.08],  # 10 Pedestrian - RED
+    [0.50, 0.50, 0.50],
+    [0.00, 0.00, 0.90],
+    [0.12, 0.55, 0.12],
+    [0.94, 0.20, 0.90],
+    [0.96, 0.51, 0.12],
+    [0.55, 0.27, 0.08],
+    [0.00, 0.90, 0.90],
+    [0.63, 0.90, 0.16],
+    [0.59, 0.24, 0.78],
+    [0.94, 0.55, 0.78],
+    [0.90, 0.08, 0.08],
 ])
-MAX_POINTS = 600000  # 청크 forward 상한 (초과 시 분할)
-
+MAX_POINTS = 600000
 
 def build_transform(feat_keys):
     return Compose([
@@ -56,10 +42,8 @@ def build_transform(feat_keys):
              feat_keys=feat_keys),
     ])
 
-
 @torch.no_grad()
 def predict_points(coord, strength, model, tf, device):
-    """coord(N,3 float32, offset frame), strength(N,1) → 점별 라벨(N,). OOM시 분할."""
     n = coord.shape[0]
     try:
         data = {"coord": coord.copy(), "strength": strength.copy()}
@@ -68,24 +52,21 @@ def predict_points(coord, strength, model, tf, device):
         batch = point_collate_fn([data])
         batch = {k: (v.to(device) if torch.is_tensor(v) else v)
                  for k, v in batch.items()}
-        # fp32 추론 (fp16/autocast 에선 spconv inference 튜너가 실패함)
         out = model(batch)
         logits = out["seg_logits"] if "seg_logits" in out else out["seg_logit"]
-        voxel_pred = logits.argmax(1).cpu().numpy()      # (M,)
-        pred = voxel_pred[inverse.cpu().numpy()]          # (N,)
+        voxel_pred = logits.argmax(1).cpu().numpy()
+        pred = voxel_pred[inverse.cpu().numpy()]
         return pred.astype(np.int16)
     except torch.cuda.OutOfMemoryError:
         torch.cuda.empty_cache()
         if n < 20000:
             raise
-        # x 중앙값으로 2분할 재귀
         mid = np.median(coord[:, 0])
         m = coord[:, 0] < mid
         out = np.empty(n, dtype=np.int16)
         out[m] = predict_points(coord[m], strength[m], model, tf, device)
         out[~m] = predict_points(coord[~m], strength[~m], model, tf, device)
         return out
-
 
 def viz_topview(xy, labels, out_png, title, max_pts=1500000):
     import matplotlib
@@ -107,12 +88,11 @@ def viz_topview(xy, labels, out_png, title, max_pts=1500000):
                        for c in present], loc="upper right", markerscale=2, fontsize=9)
     plt.tight_layout(); plt.savefig(out_png, dpi=90); plt.close()
 
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
     ap.add_argument("--weight", required=True)
-    ap.add_argument("--tag", required=True, help="출력 구분용 (예: coord, coord-intensity)")
+    ap.add_argument("--tag", required=True, help="output tag, e.g. coord or coord-intensity")
     ap.add_argument("--data_root", default="/home/jmgoo/projects/os_seg/data/osdata")
     ap.add_argument("--out_dir", default="/home/jmgoo/projects/os_seg/exp/osdata_infer")
     args = ap.parse_args()
@@ -140,10 +120,10 @@ def main():
         chunks = sorted(glob.glob(os.path.join(args.data_root, "infer", f"{stem}_*")))
         vox_coord, vox_pred = [], []
         for i, ch in enumerate(chunks):
-            coord = np.load(os.path.join(ch, "coord.npy"))      # offset frame, f32
+            coord = np.load(os.path.join(ch, "coord.npy"))
             strength = np.load(os.path.join(ch, "strength.npy"))
             pred = predict_points(coord, strength, model, tf, device)
-            vox_coord.append(coord.astype(np.float64) + offset)  # 원본 frame
+            vox_coord.append(coord.astype(np.float64) + offset)
             vox_pred.append(pred)
             if (i + 1) % 10 == 0 or i + 1 == len(chunks):
                 print(f"   chunk {i+1}/{len(chunks)}")
@@ -151,7 +131,6 @@ def main():
         vox_pred = np.concatenate(vox_pred)
         print(f"   voxel preds: {vox_pred.shape[0]:,}")
 
-        # full-res LAZ 로드 + KDTree NN 역매핑
         las = laspy.read(info["source"])
         full_xyz = np.stack([np.asarray(las.x), np.asarray(las.y),
                              np.asarray(las.z)], axis=1)
@@ -160,26 +139,22 @@ def main():
         _, nn = tree.query(full_xyz, k=1, workers=-1)
         full_pred = vox_pred[nn]
 
-        # LAZ 저장 (classification 필드에 예측 클래스)
         out_laz = os.path.join(args.out_dir, f"{stem}_pred_{args.tag}.laz")
         las.classification = full_pred.astype(np.uint8)
         las.write(out_laz)
         print(f"   saved LAZ: {out_laz}")
 
-        # 시각화
         out_png = os.path.join(args.out_dir, f"{stem}_pred_{args.tag}.png")
         viz_topview(full_xyz[:, :2], full_pred, out_png,
                     f"{stem}  [{args.tag}]")
         print(f"   saved PNG: {out_png}")
 
-        # 클래스 분포 리포트
         uq, cnt = np.unique(full_pred, return_counts=True)
-        print("   예측 분포:")
+        print("   predicted class distribution:")
         for u, c in zip(uq, cnt):
             print(f"     {u}-{CLASS_NAMES[u]:<14} {c:>12,} ({100*c/full_pred.shape[0]:5.2f}%)")
 
     print("\n>> DONE")
-
 
 if __name__ == "__main__":
     main()

@@ -1,13 +1,10 @@
-"""Mean +/- std over training seeds for the LOSO Recipe-B (DG) and self-training (UDA)
-held-out shared-5 mIoU, and for the two headline gains (+0.079 DG over avg-single,
-+0.024 UDA over DG). Seed 0 = the published single-seed run (loso_eval_ab.log /
-Table 5); seeds 1,2 come from exp/seeds/results.jsonl written by run_seeds.sh."""
+"""Mean and standard deviation over training seeds for the LOSO and self-training gains."""
 import json, numpy as np, sys, collections
 RES = "/home/jmgoo/projects/os_seg/exp/seeds/results.jsonl"
-AVG_SINGLE = {"Toronto": 0.658, "NPM3D": 0.714, "WHU": 0.619}           # realistic baseline (Table 5)
-PUB = {"dg": {"Toronto": 0.706, "NPM3D": 0.836, "WHU": 0.688},          # published seed-0 (Table 5)
+AVG_SINGLE = {"Toronto": 0.658, "NPM3D": 0.714, "WHU": 0.619}
+PUB = {"dg": {"Toronto": 0.706, "NPM3D": 0.836, "WHU": 0.688},
        "uda": {"Toronto": 0.725, "NPM3D": 0.869, "WHU": 0.707}}
-runs = collections.defaultdict(dict)   # runs[(kind, seed)][fold] = miou
+runs = collections.defaultdict(dict)
 for line in open(RES):
     r = json.loads(line); t = r["tag"]
     if t.startswith("sanity"): continue

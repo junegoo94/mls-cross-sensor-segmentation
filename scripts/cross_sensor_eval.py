@@ -1,9 +1,4 @@
-"""Cross-sensor 정량 평가 (voxel-level, 공통 5클래스).
-source-only 모델을 target 센서의 라벨 val 에 평가 → cross-sensor gap 측정.
-공통클래스: Ground, Building, Natural, Pole, Car (양쪽에 명확히 공통).
-사용: python cross_sensor_eval.py --src_cfg ... --src_weight ... --src_space tor|npm
-                                  --tgt_val <dir> --tgt_space tor|npm
-"""
+"""Shared-5 mIoU of one model on another sensor's validation split."""
 import os, glob, argparse, numpy as np, torch
 import sys; sys.path.insert(0, "/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -12,18 +7,15 @@ from pointcept.datasets.transform import Compose
 from pointcept.datasets.utils import point_collate_fn
 
 SHARED = ["Ground", "Building", "Natural", "Pole", "Car"]
-# 원본 라벨 id -> 공통 id (없는 키 = ignore(-1))
-TOR2S = {0:0, 2:2, 3:1, 5:3, 6:4}   # Toronto: 0Gr 2Nat 3Bld 5Pole 6Car
-NPM2S = {0:0, 1:1, 2:3, 7:4, 8:2}   # NPM3D:  0Gr 1Bld 2Pole 7Car 8Nat
+TOR2S = {0:0, 2:2, 3:1, 5:3, 6:4}
+NPM2S = {0:0, 1:1, 2:3, 7:4, 8:2}
 MAPS = {"tor": TOR2S, "npm": NPM2S}
-
 
 def to_shared(arr, mapping):
     out = np.full(arr.shape, -1, dtype=np.int64)
     for k, v in mapping.items():
         out[arr == k] = v
     return out
-
 
 def build_tf(feat_keys):
     return Compose([
@@ -35,7 +27,6 @@ def build_tf(feat_keys):
         dict(type="Collect", keys=("coord", "grid_coord", "inverse"), feat_keys=feat_keys),
     ])
 
-
 @torch.no_grad()
 def predict(coord, strength, model, tf, device):
     data = {"coord": coord.copy(), "strength": strength.copy()}
@@ -45,7 +36,6 @@ def predict(coord, strength, model, tf, device):
     out = model(batch)
     logits = out.get("seg_logits", out.get("seg_logit"))
     return logits.argmax(1).cpu().numpy()[inv.cpu().numpy()]
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -87,7 +77,6 @@ def main():
     for c in range(nC):
         print(f"   {SHARED[c]:<10} IoU {iou[c]:.4f}")
     print(f"   >>> mIoU(shared5) = {np.nanmean(iou):.4f}")
-
 
 if __name__ == "__main__":
     main()

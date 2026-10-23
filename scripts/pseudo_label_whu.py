@@ -1,6 +1,4 @@
-"""self-training 1단계: loso3b-AB(Tor+NPM joint) 모델로 WHU train에 pseudo-label 생성.
-conf(softmax max)>thr 인 점만 라벨, 나머지 -1. 균형 위해 178 scene 서브샘플.
-출력: data/whu_pseudo/train/<scene>/{coord(symlink),strength(symlink),segment(pseudo).npy}"""
+"""Pseudo-label WHU-Urban3D training scenes with the LOSO fold-3 model."""
 import os, glob, numpy as np, torch, sys
 sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -31,9 +29,9 @@ for i,sc in enumerate(pick):
     tot+=len(pseudo); kept+=int((pseudo>=0).sum())
     dst=os.path.join(out_root,f"whu_{os.path.basename(sc)}"); os.makedirs(dst,exist_ok=True)
     for a in ("coord.npy","strength.npy"):
-        d=os.path.join(dst,a); 
+        d=os.path.join(dst,a);
         if os.path.islink(d) or os.path.exists(d): os.remove(d)
         os.symlink(os.path.abspath(f"{sc}/{a}"),d)
     np.save(os.path.join(dst,"segment.npy"),pseudo)
     if (i+1)%40==0: print(f"  {i+1}/178  kept so far {100*kept/max(tot,1):.1f}%",flush=True)
-print(f">> done. {len(pick)} scenes, pseudo-label 채택 {100*kept/tot:.1f}% (conf>={THR})")
+print(f">> done. {len(pick)} scenes, pseudo-labels kept {100*kept/tot:.1f}% (conf>={THR})")

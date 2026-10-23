@@ -1,6 +1,4 @@
-"""LOSO held-out 평가: 각 fold 모델을 '학습에 안 쓴 센서' val에 평가 (shared-5, voxel, no TTA).
-모든 fold 모델·held-out val은 unified 11클래스 → shared-5 매핑 동일.
-single-source baseline(3x3에서)과 비교해 '센서 다양성(A)이 미지 센서 일반화를 돕나' 판정."""
+"""LOSO evaluation of Recipe A models against the single-source baselines."""
 import os, glob, numpy as np, torch, sys
 sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -9,12 +7,10 @@ from pointcept.datasets.transform import Compose
 from pointcept.datasets.utils import point_collate_fn
 
 SHARED=["Ground","Building","Natural","Pole","Car"]
-UNI2S={0:0,1:1,2:2,3:3,4:4}   # unified 11 -> shared-5 (나머지 ignore)
+UNI2S={0:0,1:1,2:2,3:3,4:4}
 
-# single-source cross-sensor (3x3에서): held-out별 [소스1점, 소스2점]
-#  Toronto: NPM->Tor .680, WHU->Tor .636 | NPM3D: Tor->NPM .854, WHU->NPM .573 | WHU: Tor->WHU .639, NPM->WHU .599
 SINGLE={"Toronto":[0.680,0.636], "NPM3D":[0.854,0.573], "WHU":[0.639,0.599]}
-FOLDS={  # fold: (cfg, weight, held_out_val_dir, held_out_name)
+FOLDS={
  "loso1":("configs/semseg-pt-v3-loso1-coord.py","exp/loso1-coord/model/model_best.pth","data/uni_toronto/val","Toronto"),
  "loso2":("configs/semseg-pt-v3-loso2-coord.py","exp/loso2-coord/model/model_best.pth","data/uni_npm3d/val","NPM3D"),
  "loso3":("configs/semseg-pt-v3-loso3-coord.py","exp/loso3-coord/model/model_best.pth","data/whu3d/val","WHU"),
@@ -41,7 +37,7 @@ def load(cfg_p,w):
 
 nS=len(SHARED); results={}
 for fold,(cfg_p,w,vdir,name) in FOLDS.items():
-    if not os.path.exists(w): print(f"[skip] {fold}: weight 없음 {w}"); continue
+    if not os.path.exists(w): print(f"[skip] {fold}: weight not found {w}"); continue
     model,tf=load(cfg_p,w); I=np.zeros(nS,np.int64); U=np.zeros(nS,np.int64)
     for sc in sorted(glob.glob(f"{vdir}/*")):
         coord=np.load(f"{sc}/coord.npy"); strg=np.load(f"{sc}/strength.npy"); gt=np.load(f"{sc}/segment.npy").astype(np.int64)
@@ -52,7 +48,6 @@ for fold,(cfg_p,w,vdir,name) in FOLDS.items():
     print(f"{fold} (A) -> held-out {name}: shared-5 mIoU {m:.3f}  [{' '.join(f'{SHARED[c][:3]}{iou[c]:.2f}' for c in range(nS))}]",flush=True)
     del model; torch.cuda.empty_cache()
 
-# 세 baseline: worst / avg(현실) / best(oracle) single-source  vs  A
 print("\n===== LOSO held-out shared-5 mIoU: single-source baselines vs A =====")
 print(f"{'held-out':>10}{'worst':>8}{'avg*':>8}{'best(oracle)':>13}{'A':>8}{'A-avg':>8}{'A-best':>8}")
 def agg(f):
@@ -64,4 +59,4 @@ if results:
     A=np.mean([m for m,_ in results.values()])
     WO=agg(lambda n:min(SINGLE[n])); AV=agg(lambda n:np.mean(SINGLE[n])); BE=agg(lambda n:max(SINGLE[n]))
     print(f"{'MEAN':>10}{WO:>8.3f}{AV:>8.3f}{BE:>13.3f}{A:>8.3f}{A-AV:>+8.3f}{A-BE:>+8.3f}")
-print("* avg = 현실 baseline(라벨없는 타겟은 best 못 고름). best = oracle(타겟라벨 필요).")
+print("* avg = realistic baseline (the best source cannot be chosen without target labels). best = oracle.")

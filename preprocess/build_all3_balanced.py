@@ -1,6 +1,4 @@
-"""Balanced three-source training set for the deployment model (all3-AB-coord):
-the same rule as build_loso_balanced.py (178 train / 13 val chunks per sensor, seed 42),
-with all three labelled sensors. Output: data/all3_balanced/{train,val} (symlinks)."""
+"""Balanced three-source training set for the deployment model (same rule as build_loso_balanced.py)."""
 import os, numpy as np
 from build_loso_balanced import OS_SEG, UNI, N_TR, N_VA, sample
 

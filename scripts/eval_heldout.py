@@ -1,5 +1,4 @@
-"""Held-out shared-5 evaluation of one model (voxel level, no TTA), same protocol as
-loso_eval_ab.py / uda_eval.py. Prints one JSON line and optionally appends it to --out."""
+"""Held-out shared-5 mIoU of one model (voxel level, no TTA)."""
 import os, glob, json, argparse, numpy as np, torch, sys
 sys.path.insert(0, "/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config

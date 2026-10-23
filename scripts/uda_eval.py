@@ -1,3 +1,4 @@
+"""Held-out evaluation of the WHU-Urban3D self-training model."""
 import glob, numpy as np, torch, sys
 sys.path.insert(0,"/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -26,4 +27,4 @@ for sc in sorted(glob.glob("data/whu3d/val/*")):
     for k in range(nS): I[k]+=int(((p==k)&(g==k)&mask).sum()); U[k]+=int((((p==k)|(g==k))&mask).sum())
 iou=np.where(U>0,I/np.maximum(U,1),np.nan)
 print(f"UDA self-training -> held-out WHU: shared-5 mIoU {np.nanmean(iou):.3f}  [{' '.join(f'{SHARED[c][:3]}{iou[c]:.2f}' for c in range(nS))}]")
-print("비교: source-only(single best Tor->WHU) 0.639 | DG joint A+B 0.688")
+print("reference: best single source (Tor->WHU) 0.639 | DG joint A+B 0.688")

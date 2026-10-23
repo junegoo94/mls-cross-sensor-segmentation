@@ -1,11 +1,4 @@
-"""저장된 단일소스 모델을 '자기 데이터셋 val'에 추론 → 예측/GT 색칠 LAZ 저장 + per-class IoU.
-재학습 없음. 모든 val 청크를 원본좌표로 합쳐 한 파일(pred / gt)로 저장.
-출력: exp/final_results/val_infer/<dataset>/<variant>/
-
-사용:
-  python val_infer.py --dataset toronto --variant coord
-  python val_infer.py --dataset npm3d   --variant coord-intensity
-"""
+"""Predict a source's own validation split and save predicted and ground-truth LAZ files."""
 import os, glob, argparse, numpy as np, torch, laspy
 import sys; sys.path.insert(0, "/home/jmgoo/projects/Pointcept")
 from pointcept.utils.config import Config
@@ -13,15 +6,13 @@ from pointcept.models import build_model
 from pointcept.datasets.transform import Compose
 from pointcept.datasets.utils import point_collate_fn
 
-# 통합 팔레트(의미→색, 0-255) — color_predictions.py의 SEMANTIC_COLOR와 동일.
-# 같은 의미 = 같은 색. 데이터셋마다 클래스 순서가 달라도 Car는 항상 주황, Ground는 항상 회색.
 SEMANTIC_COLOR = {
   "Ground":(128,128,128), "Building":(0,0,230), "Natural":(30,140,30),
   "Pole":(240,50,230), "Car":(245,130,30), "Road_markings":(0,230,230),
   "Utility_line":(160,230,40), "Fence":(240,225,30), "Bollard":(150,60,200),
   "Trash_can":(240,140,200), "Barrier":(140,70,20), "Pedestrian":(230,20,20),
 }
-def _cols(names):  # names 순서대로 통합색 0-1 배열
+def _cols(names):
     return np.array([SEMANTIC_COLOR[n] for n in names], np.float64)/255.0
 
 DS = {
@@ -41,8 +32,7 @@ DS = {
     }),
 }
 for _d in DS.values(): _d["colors"] = _cols(_d["names"])
-IGNORE_COL = np.array([0,0,0])  # GT ignore(-1) = 검정
-
+IGNORE_COL = np.array([0,0,0])
 
 def build_tf(feat_keys):
     return Compose([
@@ -54,7 +44,6 @@ def build_tf(feat_keys):
         dict(type="Collect", keys=("coord","grid_coord","inverse"), feat_keys=feat_keys),
     ])
 
-
 @torch.no_grad()
 def predict(coord, strength, model, tf, device):
     data = {"coord": coord.copy(), "strength": strength.copy()}
@@ -65,7 +54,6 @@ def predict(coord, strength, model, tf, device):
     logits = out.get("seg_logits", out.get("seg_logit"))
     return logits.argmax(1).cpu().numpy()[inv.cpu().numpy()]
 
-
 def write_laz(path, xyz, rgb01):
     h = laspy.LasHeader(point_format=2, version="1.2")
     mins = xyz.min(0)
@@ -75,7 +63,6 @@ def write_laz(path, xyz, rgb01):
     rgb16 = (np.clip(rgb01,0,1)*65535).astype(np.uint16)
     las.red, las.green, las.blue = rgb16[:,0], rgb16[:,1], rgb16[:,2]
     las.write(path)
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -123,7 +110,6 @@ def main():
     for c in range(nC): print(f"   {names[c]:<13} IoU {iou[c]:.4f}")
     print(f"   >>> mIoU {np.nanmean(iou):.4f}   overall acc {acc:.4f}")
     print(f">> saved: {out}/{args.dataset}_val_pred.laz  &  _gt.laz")
-
 
 if __name__ == "__main__":
     main()

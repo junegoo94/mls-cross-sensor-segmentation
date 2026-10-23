@@ -1,17 +1,4 @@
-"""
-Toronto3D (initial_point_clouds/*.ply) -> Pointcept DefaultDataset 포맷 전처리.
-
-출력 구조:
-  <output_root>/
-    train/  L001_c000/{coord,color,strength,segment}.npy ...  (50m 청크)
-            L003_c..., L004_c...
-    val/    L002/{coord,color,strength,segment}.npy            (통짜 타일)
-    meta.json   # offset, class 정보, 파라미터
-
-- 좌표: 글로벌 offset(min corner) 빼고 float32 저장 (UTM 정밀도 보존)
-- 라벨: 0(Unclassified)->ignore_index(-1), 1..8 -> 0..7
-- color: uint8 RGB (0-255)  / strength: float32 intensity (1-255)
-"""
+"""Toronto3D to Pointcept format: 5 cm voxels, per-cloud intensity z-score, 50 m chunks."""
 import os
 import json
 import argparse
@@ -19,11 +6,10 @@ import numpy as np
 from plyfile import PlyData
 
 CLASS_NAMES = ["Ground", "Road_markings", "Natural", "Building",
-               "Utility_line", "Pole", "Car", "Fence"]  # 0..7 (원본 1..8)
+               "Utility_line", "Pole", "Car", "Fence"]
 IGNORE_INDEX = -1
 
 SPLIT_MAP = {"L001": "train", "L002": "val", "L003": "train", "L004": "train"}
-
 
 def read_tile(path):
     ply = PlyData.read(path)
@@ -36,24 +22,20 @@ def read_tile(path):
     raw_label = np.asarray(v["scalar_Label"]).astype(np.int64)
     return coord, color, strength, raw_label
 
-
 def remap_label(raw_label):
     seg = np.full(raw_label.shape[0], IGNORE_INDEX, dtype=np.int32)
-    for k in range(1, 9):          # 원본 1..8 -> 0..7
+    for k in range(1, 9):
         seg[raw_label == k] = k - 1
     return seg
 
-
 def voxel_downsample(coord, grid_size):
-    """voxel 당 첫 점 1개 인덱스 반환 (실제 점/라벨 보존, 평균 안 냄)."""
     if grid_size is None or grid_size <= 0:
         return np.arange(coord.shape[0])
     key = np.floor((coord - coord.min(0)) / grid_size).astype(np.int64)
     mx = key.max(0) + 1
     kid = key[:, 0] * (mx[1] * mx[2]) + key[:, 1] * mx[2] + key[:, 2]
-    _, idx = np.unique(kid, return_index=True)   # 각 voxel 최초 출현 점
+    _, idx = np.unique(kid, return_index=True)
     return np.sort(idx)
-
 
 def save_scene(out_dir, coord, color, strength, segment):
     os.makedirs(out_dir, exist_ok=True)
@@ -62,12 +44,10 @@ def save_scene(out_dir, coord, color, strength, segment):
     np.save(os.path.join(out_dir, "strength.npy"), strength.astype(np.float32))
     np.save(os.path.join(out_dir, "segment.npy"), segment.astype(np.int32))
 
-
 def chunk_indices(coord_xy, size, stride, min_points):
-    """stride 간격 셀 기준으로 size x size 윈도우(겹침) 청크 인덱스 목록 반환."""
     mins = coord_xy.min(0)
-    cell = np.floor((coord_xy - mins) / stride).astype(np.int64)  # (N,2)
-    nb = int(np.ceil(size / stride))                              # 윈도우가 덮는 셀 수
+    cell = np.floor((coord_xy - mins) / stride).astype(np.int64)
+    nb = int(np.ceil(size / stride))
     BIG = cell[:, 1].max() + 2
     cid = cell[:, 0] * BIG + cell[:, 1]
     order = np.argsort(cid, kind="stable")
@@ -79,7 +59,6 @@ def chunk_indices(coord_xy, size, stride, min_points):
     chunks = []
     for u in uniq:
         cx, cy = int(u) // BIG, int(u) % BIG
-        # 윈도우가 덮는 셀들의 점 모으기
         cand = []
         for dx in range(nb):
             for dy in range(nb):
@@ -89,7 +68,6 @@ def chunk_indices(coord_xy, size, stride, min_points):
         if not cand:
             continue
         cand = np.concatenate(cand)
-        # 정확한 박스 [origin, origin+size) 로 마스킹
         ox = mins[0] + cx * stride
         oy = mins[1] + cy * stride
         xy = coord_xy[cand]
@@ -99,7 +77,6 @@ def chunk_indices(coord_xy, size, stride, min_points):
         if idx.shape[0] >= min_points:
             chunks.append((f"x{cx:02d}_y{cy:02d}", idx))
     return chunks
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -111,13 +88,12 @@ def main():
     ap.add_argument("--chunk_stride", type=float, default=25.0)
     ap.add_argument("--min_points", type=int, default=10000)
     ap.add_argument("--grid_size", type=float, default=0.05,
-                    help="voxel 다운샘플 크기(m). 0 이면 비활성")
+                    help="voxel size in metres (0 disables downsampling)")
     args = ap.parse_args()
 
     tiles = ["L001", "L002", "L003", "L004"]
     paths = {t: os.path.join(args.input_root, f"{t}.ply") for t in tiles}
 
-    # 1) 전체 읽고 글로벌 offset 계산
     print(">> reading tiles ...")
     data = {}
     gmin = np.array([np.inf, np.inf, np.inf])
@@ -125,11 +101,8 @@ def main():
     for t in tiles:
         coord, color, strength, raw = read_tile(paths[t])
         seg = remap_label(raw)
-        # voxel 다운샘플 (밀도 균일화)
         keep = voxel_downsample(coord, args.grid_size)
         coord, color, strength, seg = coord[keep], color[keep], strength[keep], seg[keep]
-        # intensity per-tile z-score (도메인 갭 완화; OS_data도 추론 시 동일 처리)
-        # NaN/inf 안전 처리: finite 값으로만 통계, 비정상값은 평균(정규화 후 0)으로 대체
         finite = np.isfinite(strength)
         n_bad = int((~finite).sum())
         mu = float(strength[finite].mean())
@@ -143,7 +116,6 @@ def main():
               f"valid(seg>=0)={int((seg >= 0).sum()):,}  intensity mu={mu:.1f} sd={sd:.1f}")
     print(f">> global offset (subtract): {gmin}")
 
-    # 2) offset 적용 + 분할 저장
     n_scenes = {"train": 0, "val": 0}
     for t in tiles:
         coord, color, strength, seg = data[t]
@@ -152,11 +124,9 @@ def main():
         split_dir = os.path.join(args.output_root, split)
 
         if split == "train":
-            # train: 겹침 청크 (stride < size)
             chunks = chunk_indices(coord[:, :2], args.chunk_size,
                                    args.chunk_stride, args.min_points)
         else:
-            # val: 비겹침 청크 (stride == size) → 평가 시 중복 없음 + OOM 방지
             chunks = chunk_indices(coord[:, :2], args.chunk_size,
                                    args.chunk_size, 1000)
         print(f">> {t}: {len(chunks)} {split} chunks")
@@ -165,7 +135,6 @@ def main():
             save_scene(out, coord[idx], color[idx], strength[idx], seg[idx])
             n_scenes[split] += 1
 
-    # 3) meta 저장
     os.makedirs(args.output_root, exist_ok=True)
     meta = {
         "global_offset": gmin.tolist(),
@@ -186,7 +155,6 @@ def main():
         json.dump(meta, f, indent=2)
     print(f">> done. scenes: {n_scenes}")
     print(f">> output: {args.output_root}")
-
 
 if __name__ == "__main__":
     main()

@@ -1,23 +1,18 @@
-"""균형 LOSO 데이터셋: 각 센서를 동일 chunk 수로 서브샘플(불균형 confound 제거).
-train N_TR/센서, val N_VA/센서 (랜덤, 고정 seed). held-out 평가셋은 별도(전체 사용).
-
-산출: data/loso1b_test_toronto, loso2b_test_npm3d, loso3b_test_whu  (각 {train,val})
-"""
+"""Balanced LOSO folds with the same number of chunks per sensor."""
 import os, glob, numpy as np
 
 OS_SEG = "/home/jmgoo/projects/os_seg"
 UNI = {"tor": f"{OS_SEG}/data/uni_toronto",
        "npm": f"{OS_SEG}/data/uni_npm3d",
        "whu": f"{OS_SEG}/data/whu3d"}
-N_TR = 178   # 센서당 train chunk (NPM3D=최소)
-N_VA = 13    # 센서당 val chunk
+N_TR = 178
+N_VA = 13
 
 FOLDS = {
-    "loso1b_test_toronto": ["npm", "whu"],   # held-out Toronto
-    "loso2b_test_npm3d":   ["tor", "whu"],   # held-out NPM3D
-    "loso3b_test_whu":     ["tor", "npm"],   # held-out WHU
+    "loso1b_test_toronto": ["npm", "whu"],
+    "loso2b_test_npm3d":   ["tor", "whu"],
+    "loso3b_test_whu":     ["tor", "npm"],
 }
-
 
 def sample(sensor_root, split, k, rng):
     scenes = sorted(glob.glob(os.path.join(sensor_root, split, "*")))
@@ -25,7 +20,6 @@ def sample(sensor_root, split, k, rng):
         return scenes
     idx = rng.choice(len(scenes), k, replace=False)
     return [scenes[i] for i in sorted(idx)]
-
 
 def main():
     for fold, sensors in FOLDS.items():
@@ -44,8 +38,7 @@ def main():
                         os.symlink(os.path.abspath(scene), dst)
                     cnt[split] += 1
         print(f"{fold} ({'+'.join(sensors)}): train {cnt['train']} / val {cnt['val']}")
-    print(">> done. held-out eval: uni_toronto/val, uni_npm3d/val, whu3d/val (전체)")
-
+    print(">> done. held-out eval: uni_toronto/val, uni_npm3d/val, whu3d/val")
 
 if __name__ == "__main__":
     main()
