@@ -1,7 +1,5 @@
 # Cross-Sensor Generalization of MLS Point-Cloud Semantic Segmentation
 
-Code, configurations, and trained weights for the paper *Cross-Sensor Generalization of MLS Point-Cloud Semantic Segmentation* (June Moh Goo, Zichao Zeng, Stefano Cavazzi, James Gillespie, Jan Boehm; under submission to *Remote Sensing*).
-
 A model trained on one mobile laser scanning (MLS) sensor loses accuracy on another, because each LiDAR samples the scene differently. We study this with three labelled MLS sensors and one unlabelled operational target, an Ordnance Survey point cloud of Southampton captured with a Hesai PandarXT-32, and give a simple target-free baseline: train one off-the-shelf Point Transformer V3 on several labelled sensors at once.
 
 ![Method overview](assets/fig_method.png)
