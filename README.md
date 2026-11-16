@@ -31,25 +31,25 @@ The three taxonomies are mapped to one 11-class space. A class a source does not
 
 ## Results
 
-**Cross-sensor gap.** In-domain shared-5 mIoU averages 0.91 and falls to 0.66 across sensors. The loss concentrates on poles and buildings.
+**Cross-sensor gap.** In-domain shared-5 mIoU averages 0.91 and falls to 0.67 across sensors. The loss concentrates on poles and buildings. All WHU-Urban3D scores use the corrected v1.1 labels.
 
-![3x3 cross-sensor transfer](assets/fig_cross_sensor_gap.png)
+<p align="center"><img src="assets/fig_cross_sensor_gap.png" alt="3x3 cross-sensor transfer" width="50%"></p>
 
 **Joint multi-sensor training (leave-one-sensor-out).** Training on the two remaining sensors beats the average single source on every held-out sensor, without any target labels.
 
 | Held-out mean, shared-5 mIoU | single seed | 3 seeds |
 |---|---|---|
-| Average single source (realistic baseline) | 0.664 | 0.664 |
-| Joint training, Recipe B (target-free) | 0.743 | 0.741 ± 0.007 |
-| + one self-training step on the target | 0.767 | 0.762 ± 0.007 |
-| Best single source (oracle, needs target labels) | 0.724 | |
+| Average single source (realistic baseline) | 0.668 | 0.668 |
+| Joint training, Recipe B (target-free) | 0.749 | 0.747 ± 0.003 |
+| + one self-training step on the target | 0.772 | 0.769 ± 0.005 |
+| Best single source (oracle, needs target labels) | 0.729 | |
 
-Joint training gains **+0.077 ± 0.007** over the average single source and reaches about **97 %** of the self-training score without touching the target.
+Joint training gains **+0.079 ± 0.003** over the average single source and reaches about **97 %** of the self-training score without touching the target.
 
 ![LOSO summary](assets/fig_loso_summary.png)
 ![LOSO qualitative results](assets/fig_loso_qualitative.png)
 
-**Intensity** helps only reflectance-defined classes such as road marking and transfers worst across sensors, so all cross-sensor models use coordinates only.
+**Intensity** helps reflectance-defined classes such as road marking in domain. Across sensors it helps only when each cloud is standardized with its own statistics, and then unevenly, so all cross-sensor models use coordinates only.
 
 ---
 
